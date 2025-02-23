@@ -45,4 +45,4 @@ if ($eligibleRoles -ne $null -or $eligibleRoles.Count -gt 0) {
 }
 
 }
-Write-Output "Have a good day! Exiting..."
+Write-Output "Have a good day! Exiting."
