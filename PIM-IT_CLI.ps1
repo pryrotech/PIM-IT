@@ -26,7 +26,6 @@ Write-Output "******************************"
 Write-Output "* Welcome to PIM-IT CLI Tool *"
 Write-Output "******************************"
 
-Write-Output "`nHello $($user.UserPrincipalName), please select one of your eligible roles beclow:"
 if ($eligibleRoles -eq $null -or $eligibleRoles.Count -eq 0) {
     $eligibleRoles = Read-Host "No roles found. Scan for new roles? (Y/N)"
 
@@ -39,6 +38,11 @@ if ($eligibleRoles -eq $null -or $eligibleRoles.Count -eq 0) {
         $programStatus = 0
     }
 }
-Write-Output $eligibleRoles
+
+if ($eligibleRoles -ne $null -or $eligibleRoles.Count -gt 0) {
+    Write-Output "`nHello $($user.UserPrincipalName), please select one of your eligible roles below:"
+    Write-Output $eligibleRoles
+}
+
 }
 Write-Output "Have a good day! Exiting..."
