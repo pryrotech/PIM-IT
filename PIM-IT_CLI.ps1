@@ -3,8 +3,8 @@
 #        By Colby Pryor (PryroTech)       #
 ###########################################
 
-# Import and package
-# Import-MgGraph
+# Install packages if required
+Install-Module Microsoft.Graph
 
 # Connect to Microsoft Graph with the required scopes
 Connect-MgGraph -Scopes "User.Read", "RoleManagement.ReadWrite.Directory" -NoWelcome
