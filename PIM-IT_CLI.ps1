@@ -3,14 +3,20 @@
 #        By Colby Pryor (PryroTech)       #
 ###########################################
 
-#Imports
+# Imports
 Import-Module Microsoft.Graph.Beta.Identity.Governance
+Import-Module Microsoft.Graph.Authentication
 
-#Connect to Mg-Graph
-Connect-MgGraph -Scopes "PrivilegedAccess.ReadWrite.AzureADGroup"
-$user = "//"
+# Connect to Microsoft Graph
+Connect-MgGraph -Scopes "RoleManagement.ReadWrite.Directory"
 
-#Get all eligible PIM roles
-$roles = Get-MgBetaRoleManagementDirectoryRoleAssignmentSchedule -All  -Filter "PrincipalId eq '$($user.Id)'"
+# Get current user ID
+$currentUser = 'cpryor@pryrotechsandbox.onmicrosoft.com'
 
-Write-Output $roles.RoleDefinition.DisplayName
+# Get all eligible PIM role assignments
+$roles = Get-MgRoleManagementDirectoryRoleDefinition -All
+
+# Filter roles based on the connected user
+$eligibleRoles = $roles | Where-Object { $_.PrincipalId -eq $currentUser }
+
+Write-Output $eligibleRoles
