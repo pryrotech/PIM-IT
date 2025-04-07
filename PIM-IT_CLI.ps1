@@ -5,18 +5,16 @@
 
 # Imports
 Import-Module Microsoft.Graph.Beta.Identity.Governance
-Import-Module Microsoft.Graph.Authentication
+Import-Module Microsoft.Graph
 
 # Connect to Microsoft Graph
-Connect-MgGraph -Scopes "RoleManagement.ReadWrite.Directory"
+Connect-MgGraph -Scopes "User.Read.All" -NoWelcome
 
 # Get current user ID
-$currentUser = 'cpryor@pryrotechsandbox.onmicrosoft.com'
+$currentUser = Get-MgUser -UserId -Filter 'UserPrincipalName eq "cpryor@pryrotechsandbox.onmicrosoft.com"'
 
-# Get all eligible PIM role assignments
-$roles = Get-MgRoleManagementDirectoryRoleDefinition -All
+#Get eligible PIM roles
 
-# Filter roles based on the connected user
-$eligibleRoles = $roles | Where-Object { $_.PrincipalId -eq $currentUser }
+$eligibleRoles = Get-MgBetaPrivilegedRoleRoleAssignment -Filter "principalId eq '$($currentUser.Id)' and assignmentState eq 'Eligible'"
 
 Write-Output $eligibleRoles
