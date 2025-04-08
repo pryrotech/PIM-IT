@@ -7,10 +7,10 @@
 Import-Module Microsoft.Graph.Beta.Identity.Governance
 
 # Connect to Microsoft Graph
-Connect-MgGraph -Scopes "User.Read.All", "RoleManagement.ReadWrite.Directory"
+Connect-MgGraph -Scopes "User.Read.All", "RoleAssignmentSchedule.ReadWrite.Directory" -UseDeviceAuthentication
 
 # Get current user ID
-$currentUser = Get-MgUser -Filter "userPrincipalName eq '//'"
+$currentUser = Get-MgUser -Filter "userPrincipalName eq 'cpryor@pryrotechsandbox.onmicrosoft.com'"
 
 # Get eligible PIM roles
 $eligibleRoles = Get-MgRoleManagementDirectoryRoleEligibilitySchedule -Filter "principalId eq '$($currentUser.Id)'"
@@ -66,6 +66,7 @@ while ($searchingForRoles -eq $True) {
 # Prompt user to assign the selected role
 if ($selectedRole) {
     $assignRole = Read-Host "Do you want to assign the role '$selectedRole'? (Y/N)"
+    $setRoleHours = Read-Host "Specify the number of hours you wish to have the role and press ENTER"
     if ($assignRole -eq "Y") {
         $roleDefinitionId = ($roleDefinitions | Where-Object { $_.DisplayName -eq $selectedRole }).Id
         $directoryScopeId = "/"  # The scope of the role assignment ("/" for tenant-wide)
@@ -78,13 +79,14 @@ if ($selectedRole) {
             DirectoryScopeId = $directoryScopeId
             AssignmentType = "Eligible"  # Can be "Eligible" or "Active"
             StartDateTime = (Get-Date).ToUniversalTime()
-            EndDateTime = (Get-Date).AddHours(10).ToUniversalTime()  # Example: 10 hours duration
+            EndDateTime = (Get-Date).AddHours($setRoleHours).ToUniversalTime()  
             Justification = "Assigning role via PIM-IT CLI Tool"
         }
 
         # Submit the role assignment request
         New-MgRoleManagementDirectoryRoleAssignmentScheduleRequest -BodyParameter $roleAssignmentRequest
         Write-Output "Role '$selectedRole' has been assigned."
+        Write-Output $roleAssignmentRequest
     } else {
         Write-Output "Role assignment cancelled."
     }
