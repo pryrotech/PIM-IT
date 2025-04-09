@@ -6,11 +6,13 @@
 # Imports
 Import-Module Microsoft.Graph.Beta.Identity.Governance
 
+
+
 # Connect to Microsoft Graph
-Connect-MgGraph -Scopes "User.Read.All", "RoleAssignmentSchedule.ReadWrite.Directory" -UseDeviceAuthentication
+Connect-MgGraph -Scopes "User.Read.All", "RoleAssignmentSchedule.ReadWrite.Directory" -UseDeviceAuthentication -NoWelcome
 
 # Get current user ID
-$currentUser = Get-MgUser -Filter "userPrincipalName eq 'cpryor@pryrotechsandbox.onmicrosoft.com'"
+$currentUser = Get-MgUser -Filter "userPrincipalName eq '//'" -Verbose
 
 # Get eligible PIM roles
 $eligibleRoles = Get-MgRoleManagementDirectoryRoleEligibilitySchedule -Filter "principalId eq '$($currentUser.Id)'"
@@ -73,14 +75,19 @@ if ($selectedRole) {
 
         # Create the role assignment request
         $roleAssignmentRequest = @{
-            Action = "adminAssign"
-            PrincipalId = $currentUser.Id
-            RoleDefinitionId = $roleDefinitionId
-            DirectoryScopeId = $directoryScopeId
-            AssignmentType = "Eligible"  # Can be "Eligible" or "Active"
-            StartDateTime = (Get-Date).ToUniversalTime()
-            EndDateTime = (Get-Date).AddHours($setRoleHours).ToUniversalTime()  
+            Action = "selfActivate"
+            PrincipalId = "5ca7e804-9c8e-40b4-8e03-556ce0aa93cd"
+            RoleDefinitionId = "69091246-20e8-4a56-aa4d-066075b2a7a8"
+            DirectoryScopeId = "/"
+            AssignmentType = "Eligible"  # Can be "Eligible" or "Active"  
             Justification = "Assigning role via PIM-IT CLI Tool"
+            ScheduleInfo = @{
+                StartDateTime = Get-Date
+                Expiration = @{
+                    Type = "AfterDuration"
+                    Duration = (Get-Date).AddHours($setRoleHours)
+                }
+            }
         }
 
         # Submit the role assignment request
