@@ -10,7 +10,7 @@ Import-Module Microsoft.Graph.Beta.Identity.Governance
 Connect-MgGraph -Scopes "User.Read.All", "RoleAssignmentSchedule.ReadWrite.Directory" -UseDeviceAuthentication -NoWelcome
 
 # Get current user ID (CHANGE BEFORE RUNNING SCRIPT)
-$currentUser = Get-MgUser -Filter "userPrincipalName eq '//'" -Verbose
+$currentUser = Get-MgUser -UserId (Get-MgUser -Filter "userPrincipalName eq '$env:USERNAME@$env:USERDNSDOMAIN'").Id
 
 # Get eligible PIM roles
 $eligibleRoles = Get-MgRoleManagementDirectoryRoleEligibilitySchedule -Filter "principalId eq '$($currentUser.Id)'"
