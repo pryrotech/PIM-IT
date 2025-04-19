@@ -6,12 +6,10 @@
 # Imports
 Import-Module Microsoft.Graph.Beta.Identity.Governance
 
-
-
 # Connect to Microsoft Graph
 Connect-MgGraph -Scopes "User.Read.All", "RoleAssignmentSchedule.ReadWrite.Directory" -UseDeviceAuthentication -NoWelcome
 
-# Get current user ID
+# Get current user ID (CHANGE BEFORE RUNNING SCRIPT)
 $currentUser = Get-MgUser -Filter "userPrincipalName eq '//'" -Verbose
 
 # Get eligible PIM roles
@@ -77,7 +75,7 @@ if ($selectedRole) {
         $roleAssignmentRequest = @{
             Action = "selfActivate"
             PrincipalId = "5ca7e804-9c8e-40b4-8e03-556ce0aa93cd"
-            RoleDefinitionId = "69091246-20e8-4a56-aa4d-066075b2a7a8"
+            RoleDefinitionId = $roleDefinitionId
             DirectoryScopeId = "/"
             AssignmentType = "Eligible"  # Can be "Eligible" or "Active"  
             Justification = "Assigning role via PIM-IT CLI Tool"
@@ -85,7 +83,7 @@ if ($selectedRole) {
                 StartDateTime = Get-Date
                 Expiration = @{
                     Type = "AfterDuration"
-                    Duration = (Get-Date).AddHours($setRoleHours)
+                    Duration = "PT"+$setRoleHours+"H"
                 }
             }
         }
@@ -93,7 +91,6 @@ if ($selectedRole) {
         # Submit the role assignment request
         New-MgRoleManagementDirectoryRoleAssignmentScheduleRequest -BodyParameter $roleAssignmentRequest
         Write-Output "Role '$selectedRole' has been assigned."
-        Write-Output $roleAssignmentRequest
     } else {
         Write-Output "Role assignment cancelled."
     }
