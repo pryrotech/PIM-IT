@@ -5,12 +5,14 @@
 
 # Imports
 Import-Module Microsoft.Graph.Beta.Identity.Governance
+Import-Module Microsoft.Graph.Authentication
+Import-Module Microsoft.Graph.Users
 
 # Connect to Microsoft Graph
-Connect-MgGraph -Scopes "User.Read.All", "RoleAssignmentSchedule.ReadWrite.Directory" -UseDeviceAuthentication -NoWelcome
+Connect-MgGraph -Scopes "User.Read.All, RoleManagement.ReadWrite.Directory, RoleAssignmentSchedule.Read.Directory, RoleEligibilitySchedule.Read.Directory " -NoWelcome | Format-List userPrincipalName
 
-# Get current user ID (CHANGE BEFORE RUNNING SCRIPT)
-$currentUser = Get-MgUser -Filter "userPrincipalName eq '//'" -Verbose
+# Get current user ID
+$currentUser = Get-MgUser -UserId (Get-MgUser -Filter "userPrincipalName eq '$env:USERNAME@$env:USERDNSDOMAIN'").Id
 
 # Get eligible PIM roles
 $eligibleRoles = Get-MgRoleManagementDirectoryRoleEligibilitySchedule -Filter "principalId eq '$($currentUser.Id)'"
@@ -27,71 +29,175 @@ Write-Output "**********************************************"
 Write-Output "***       Welcome to PIM-IT CLI Tool       ***"
 Write-Output "**********************************************"
 Start-Sleep -Seconds 3
-Clear-Host
 
 $searchingForRoles = $True
 
 while ($searchingForRoles -eq $True) {
-    if ($eligibleRoleNames.Count -ge 1) {
-        Write-Output "Welcome to PIM-IT! Please select the role you require below:"
-        for ($i = 0; $i -lt $eligibleRoleNames.Count; $i++) {
-            Write-Output "$($i + 1). $($eligibleRoleNames[$i])"
-        }
-        $roleSelection = Read-Host "Please select a number and press ENTER"
-        $selectedRoleIndex = $roleSelection - 1
-        if ($selectedRoleIndex -ge 0 -and $selectedRoleIndex -lt $eligibleRoleNames.Count) {
-            $selectedRole = $eligibleRoleNames[$selectedRoleIndex]
-            Write-Output "You have selected the role: $selectedRole"
-            $searchingForRoles = $False
-        } else {
-            Write-Output "Invalid selection. Please try again."
-        }
-    } else {
-        Write-Output "No roles found. Would you like to try again? (Y/N)"
-        $retry = Read-Host "Enter Y to retry or N to exit"
-        if ($retry -eq "Y") {
-            $eligibleRoles = Get-MgRoleManagementDirectoryRoleEligibilitySchedule -Filter "principalId eq '$($currentUser.Id)'"
-            $eligibleRoleNames = @()
-            foreach ($role in $eligibleRoles) {
-                $roleDefinition = $roleDefinitions | Where-Object { $_.Id -eq $role.RoleDefinitionId }
-                $eligibleRoleNames += $roleDefinition.DisplayName
+    Write-Output "Welcome to PIM-IT! Please select an action:"
+    Write-Output "1. Activate a role"
+    Write-Output "D. Deactivate a role"
+    Write-Output "U. Update an active role"
+    Write-Output "X. Exit"
+    $actionSelection = Read-Host "Enter your choice"
+
+    if ($actionSelection -eq "1") {
+        # Activation process
+        if ($eligibleRoleNames.Count -ge 1) {
+            Write-Output "Please select the role you require below:"
+            for ($i = 0; $i -lt $eligibleRoleNames.Count; $i++) {
+                Write-Output "$($i + 1). $($eligibleRoleNames[$i])"
+            }
+            $roleSelection = Read-Host "Please select a number and press ENTER"
+
+            $selectedRoleIndex = $roleSelection - 1
+            if ($selectedRoleIndex -ge 0 -and $selectedRoleIndex -lt $eligibleRoleNames.Count) {
+                $selectedRole = $eligibleRoleNames[$selectedRoleIndex]
+                Write-Output "You have selected the role: $selectedRole"
+
+                # Prompt user to assign the role
+                $assignRole = Read-Host "Do you want to assign the role '$selectedRole'? (Y/N)"
+                if ($assignRole -eq "Y") {
+                    do {
+                        $setRoleHours = Read-Host "Specify the number of hours you wish to have the role and press ENTER"
+                        $setRoleMinutes = [int]$setRoleHours * 60
+
+                        if ($setRoleMinutes -lt 5) {
+                            Write-Output "Error: The minimum required active duration is 5 minutes. Please enter a valid duration."
+                        }
+                    } while ($setRoleMinutes -lt 5)
+
+                    $roleDefinitionId = ($roleDefinitions | Where-Object { $_.DisplayName -eq $selectedRole }).Id
+                    $directoryScopeId = "/"  
+
+                    $roleAssignmentRequest = @{
+                        Action = "selfActivate"
+                        PrincipalId = $currentUser.Id
+                        RoleDefinitionId = $roleDefinitionId
+                        DirectoryScopeId = $directoryScopeId
+                        AssignmentType = "Eligible"
+                        Justification = "Assigning role via PIM-IT CLI Tool"
+                        ScheduleInfo = @{
+                            StartDateTime = Get-Date
+                            Expiration = @{
+                                Type = "AfterDuration"
+                                Duration = "PT"+$setRoleHours+"H"
+                            }
+                        }
+                    }
+
+                    New-MgRoleManagementDirectoryRoleAssignmentScheduleRequest -BodyParameter $roleAssignmentRequest
+                    Write-Output "Role '$selectedRole' has been assigned."
+                } else {
+                    Write-Output "Role assignment cancelled."
+                }
+            } else {
+                Write-Output "Invalid selection."
             }
         } else {
-            $searchingForRoles = $False
-            Write-Output "Exiting the tool. No roles found."
+            Write-Output "No eligible roles found."
         }
-    }
+    } elseif ($actionSelection -eq "D") {
+        # Deactivation process
+        $activatedRoles = Get-MgRoleManagementDirectoryRoleAssignment -Filter "principalId eq '$($currentUser.Id)'"
+        $activeRoleDefinitions = Get-MgRoleManagementDirectoryRoleDefinition
+        $activatedRoleNames = @()
+
+        foreach($role in $activatedRoles){
+            $roleDefinition = $activeRoleDefinitions | Where-Object { $_.Id -eq $role.RoleDefinitionId }
+            $activatedRoleNames += $roleDefinition.DisplayName
+        }
+
+        if ($activatedRoleNames.Count -gt 0) {
+            Write-Output "Select an active role to deactivate:"
+            for ($i = 0; $i -lt $activatedRoleNames.Count; $i++) {
+                Write-Output "$($i + 1). $($activatedRoleNames[$i])"
+            }
+            $roleSelection = Read-Host "Enter the number of the role to deactivate"
+
+            if ($roleSelection -ge 1 -and $roleSelection -le $activatedRoleNames.Count) {
+                $roleDefinitionId = ($activeRoleDefinitions | Where-Object { $_.DisplayName -eq $activatedRoleNames[$roleSelection - 1] }).Id
+                Write-Output "You have selected: $($activatedRoleNames[$roleSelection - 1]). Deactivating..."
+
+                $roleDeactivationRequest = @{
+                    Action = "selfDeactivate"
+                    PrincipalId = $currentUser.Id
+                    RoleDefinitionId = $roleDefinitionId
+                    DirectoryScopeId = "/"
+                    Justification = "Deactivating role via PIM-IT CLI Tool"
+                }
+
+                New-MgRoleManagementDirectoryRoleAssignmentScheduleRequest -BodyParameter $roleDeactivationRequest
+                Write-Output "Role deactivated successfully."
+            } else {
+                Write-Output "Invalid selection."
+            }
+        } else {
+            Write-Output "No active roles found."
+        }
+    } elseif ($actionSelection -eq "U") {
+
+        # Retrieve all role definitions
+$roleDefinitions = Get-MgRoleManagementDirectoryRoleDefinition
+
+# Function to get role name by role definition ID
+function Get-RoleNameById($roleDefinitionId) {
+    $roleDefinition = $roleDefinitions | Where-Object { $_.Id -eq $roleDefinitionId }
+    return $roleDefinition.DisplayName
 }
 
-# Prompt user to assign the selected role
-if ($selectedRole) {
-    $assignRole = Read-Host "Do you want to assign the role '$selectedRole'? (Y/N)"
-    $setRoleHours = Read-Host "Specify the number of hours you wish to have the role and press ENTER"
-    if ($assignRole -eq "Y") {
-        $roleDefinitionId = ($roleDefinitions | Where-Object { $_.DisplayName -eq $selectedRole }).Id
-        $directoryScopeId = "/"  # The scope of the role assignment ("/" for tenant-wide)
+# Update active role
+$activatedRoles = Get-MgRoleManagementDirectoryRoleAssignment -Filter "principalId eq '$($currentUser.Id)'"
+Write-Output "Select an active role to update:"
+for ($i = 0; $i -lt $activatedRoles.Count; $i++) {
+    $roleName = Get-RoleNameById($activatedRoles[$i].RoleDefinitionId)
+    Write-Output "$($i + 1). $roleName"
+}
+$roleUpdateSelection = Read-Host "Enter the number of the role to update"
 
-        # Create the role assignment request
-        $roleAssignmentRequest = @{
-            Action = "selfActivate"
-            PrincipalId = "5ca7e804-9c8e-40b4-8e03-556ce0aa93cd"
-            RoleDefinitionId = $roleDefinitionId
-            DirectoryScopeId = "/"
-            AssignmentType = "Eligible"  # Can be "Eligible" or "Active"  
-            Justification = "Assigning role via PIM-IT CLI Tool"
-            ScheduleInfo = @{
-                StartDateTime = Get-Date
-                Expiration = @{
-                    Type = "AfterDuration"
-                    Duration = "PT"+$setRoleHours+"H"
-                }
-            }
+if ($roleUpdateSelection -ge 1 -and $roleUpdateSelection -le $activatedRoles.Count) {
+    $updateRoleHours = Read-Host "Enter the new duration (in hours) for this role"
+    
+    $roleDeactivationRequest = @{
+        Action = "selfDeactivate"
+        PrincipalId = $currentUser.Id
+        RoleDefinitionId = $roleDefinitionId
+        DirectoryScopeId = "/"
+        Justification = "Deactivating role via PIM-IT CLI Tool"
+    }
+
+    New-MgRoleManagementDirectoryRoleAssignmentScheduleRequest -BodyParameter $roleDeactivationRequest
+    Write-Output "Role deactivated successfully."
+    
+    # Create a new role assignment with the updated parameters
+    $roleDefinitionId = ($roleDefinitions | Where-Object { $_.DisplayName -eq $selectedRole }).Id
+                    $directoryScopeId = "/"  
+                    $roleAssignmentRequest = @{
+                        Action = "selfActivate"
+                        PrincipalId = $currentUser.Id
+                        RoleDefinitionId = $roleDefinitionId
+                        DirectoryScopeId = $directoryScopeId
+                        AssignmentType = "Eligible"
+                        Justification = "Assigning role via PIM-IT CLI Tool"
+                        ScheduleInfo = @{
+                            StartDateTime = Get-Date
+                            Expiration = @{
+                                Type = "AfterDuration"
+                                Duration = "PT"+$setRoleHours+"H"
+                            }
+                        }
+                    }
+
+                    New-MgRoleManagementDirectoryRoleAssignmentScheduleRequest -BodyParameter $roleAssignmentRequest
+                    Write-Output "Role '$selectedRole' has been assigned."
+}
+
+ else {
+            Write-Output "Invalid selection."
         }
-
-        # Submit the role assignment request
-        New-MgRoleManagementDirectoryRoleAssignmentScheduleRequest -BodyParameter $roleAssignmentRequest
-        Write-Output "Role '$selectedRole' has been assigned."
+    } elseif ($actionSelection -eq "X") {
+        Write-Output "Exiting the tool."
+        $searchingForRoles = $False
     } else {
-        Write-Output "Role assignment cancelled."
+        Write-Output "Invalid selection. Please try again."
     }
 }
