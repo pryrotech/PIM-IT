@@ -12,7 +12,7 @@ Import-Module Microsoft.Graph.Users
 Connect-MgGraph -Scopes "User.Read.All, RoleManagement.ReadWrite.Directory, RoleAssignmentSchedule.Read.Directory, RoleEligibilitySchedule.Read.Directory " -NoWelcome | Format-List userPrincipalName
 
 # Get current user ID
-$currentUser = Get-MgUser -UserId (Get-MgUser -Filter "userPrincipalName eq '$env:USERNAME'").Id
+$currentUser = Get-MgUser -UserId (Get-MgUser -Filter "userPrincipalName eq '$env:USERNAME@$env:USERDNSDOMAIN'").Id
 
 # Get eligible PIM roles
 $eligibleRoles = Get-MgRoleManagementDirectoryRoleEligibilitySchedule -Filter "principalId eq '$($currentUser.Id)'"
@@ -35,6 +35,7 @@ $searchingForRoles = $True
 while ($searchingForRoles -eq $True) {
     Write-Output "Welcome to PIM-IT! Please select an action:"
     Write-Output "1. Activate a role"
+    Write-Output "A. Activation Packages"
     Write-Output "D. Deactivate a role"
     Write-Output "U. Update an active role"
     Write-Output "X. Exit"
@@ -84,9 +85,9 @@ while ($searchingForRoles -eq $True) {
                             }
                         }
                     }
+                    New-MgRoleManagementDirectoryRoleAssignmentScheduleRequest -BodyParameter $roleDeactivationRequest
+                    Write-Output "Role deactivated successfully." 
 
-                    New-MgRoleManagementDirectoryRoleAssignmentScheduleRequest -BodyParameter $roleAssignmentRequest 
-                    Write-Output "Role '$selectedRole' has been assigned."
                 } else {
                     Write-Output "Role assignment cancelled."
                 }
@@ -207,7 +208,7 @@ if ($roleUpdateSelection -ge 1 -and $roleUpdateSelection -le $activatedRoles.Cou
 
         if($actionSelection -eq 1){
             $packageName = Read-Host "Please enter the package name and press ENTER"
-            $packageContents = Get-Content -Path "C:\Users\$env:USERNAME\$($packageName).txt"
+            $packageContents = Get-Content -Path "C:\Users\$env:USERNAME\$($packageName).json"
             New-MgRoleManagementDirectoryRoleAssignmentScheduleRequest -BodyParameter $packageContents
         }
 
@@ -215,15 +216,38 @@ if ($roleUpdateSelection -ge 1 -and $roleUpdateSelection -le $activatedRoles.Cou
             $RoleName = Read-Host "Please enter the role name and press ENTER"
             $RoleDuration = Read-Host "Please enter number of hours required"
             $RoleJustification = Read-Host "Please enter the justification"
+            $PackageName = Read-Host "Please enter in the name of the package and press ENTER"
 
             $rolesAvailable = Get-MgRoleManagementDirectoryRoleDefinition -All
 
             if($RoleName -in $rolesAvailable.DisplayName){
-                Write-Output "Hello"
+                $roleDefinitionId = ($roleDefinitions | Where-Object { $_.DisplayName -eq $selectedRole }).Id
+                    $directoryScopeId = "/"  
+                    $roleCreation = [PSCustomObject]@{
+                        Action = "selfActivate"
+                        PrincipalId = $currentUser.Id
+                        RoleDefinitionId = $roleDefinitionId = ($roleDefinitions | Where-Object { $_.DisplayName -eq $RoleName }).Id
+                        DirectoryScopeId = $directoryScopeId
+                        AssignmentType = "Eligible"
+                        Justification = $RoleJustification
+                        ScheduleInfo = @{
+                            StartDateTime = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+                            Expiration = @{
+                                Type = "AfterDuration"
+                                Duration = "PT$RoleDuration`H"
+                            }
+                        }
+                }
+                $roleCreationJson = $roleCreation | ConvertTo-Json -Depth 3 -Compress
+                $roleCreationJson | Out-File "C:\Users\$env:USERNAME\$($PackageName).json"
             }
+            }
+            }
+            
         }
-    }
+        
+    
     else {
         Write-Output "Invalid selection. Please try again."
     }
-}
+
