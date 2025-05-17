@@ -12,7 +12,7 @@ Import-Module Microsoft.Graph.Users
 Connect-MgGraph -Scopes "User.Read.All, RoleManagement.ReadWrite.Directory, RoleAssignmentSchedule.Read.Directory, RoleEligibilitySchedule.Read.Directory " -NoWelcome | Format-List userPrincipalName
 
 # Get current user ID
-$currentUser = Get-MgUser -UserId (Get-MgUser -Filter "userPrincipalName eq '$env:USERNAME@$env:USERDNSDOMAIN'").Id
+$currentUser = Get-MgUser -UserId (Get-MgUser -Filter "userPrincipalName eq '$env:USERNAME'").Id
 
 # Get eligible PIM roles
 $eligibleRoles = Get-MgRoleManagementDirectoryRoleEligibilitySchedule -Filter "principalId eq '$($currentUser.Id)'"
@@ -85,7 +85,7 @@ while ($searchingForRoles -eq $True) {
                         }
                     }
 
-                    New-MgRoleManagementDirectoryRoleAssignmentScheduleRequest -BodyParameter $roleAssignmentRequest
+                    New-MgRoleManagementDirectoryRoleAssignmentScheduleRequest -BodyParameter $roleAssignmentRequest 
                     Write-Output "Role '$selectedRole' has been assigned."
                 } else {
                     Write-Output "Role assignment cancelled."
@@ -152,7 +152,8 @@ for ($i = 0; $i -lt $activatedRoles.Count; $i++) {
     $roleName = Get-RoleNameById($activatedRoles[$i].RoleDefinitionId)
     Write-Output "$($i + 1). $roleName"
 }
-$roleUpdateSelection = Read-Host "Enter the number of the role to update"
+$roleUpdateSelection = Read-Host "Enter the number of the role to update (NOTE: the role must be active for at least five minutes prior to updating!)"
+
 
 if ($roleUpdateSelection -ge 1 -and $roleUpdateSelection -le $activatedRoles.Count) {
     $updateRoleHours = Read-Host "Enter the new duration (in hours) for this role"
@@ -196,8 +197,33 @@ if ($roleUpdateSelection -ge 1 -and $roleUpdateSelection -le $activatedRoles.Cou
         }
     } elseif ($actionSelection -eq "X") {
         Write-Output "Exiting the tool."
+        Disconnect-MgGraph
         $searchingForRoles = $False
-    } else {
+    } elseif($actionSelection -eq "A"){
+        Write-Output "Welcome to activation packages. This section will allow you to activate roles with pre-filled parameters and create your own activation package."
+        Write-Output "1. Use an activation package"
+        Write-Output "2. Create an activation package"
+        $actionSelection = Read-Host "Select an option and press ENTER"
+
+        if($actionSelection -eq 1){
+            $packageName = Read-Host "Please enter the package name and press ENTER"
+            $packageContents = Get-Content -Path "C:\Users\$env:USERNAME\$($packageName).txt"
+            New-MgRoleManagementDirectoryRoleAssignmentScheduleRequest -BodyParameter $packageContents
+        }
+
+        elseif($actionSelection -eq 2){
+            $RoleName = Read-Host "Please enter the role name and press ENTER"
+            $RoleDuration = Read-Host "Please enter number of hours required"
+            $RoleJustification = Read-Host "Please enter the justification"
+
+            $rolesAvailable = Get-MgRoleManagementDirectoryRoleDefinition -All
+
+            if($RoleName -in $rolesAvailable.DisplayName){
+                Write-Output "Hello"
+            }
+        }
+    }
+    else {
         Write-Output "Invalid selection. Please try again."
     }
 }
