@@ -12,6 +12,13 @@ PIM-IT is a PowerShell-based tool that utilizes Microsoft Graph to assign PIM ro
   <li>First initial release of PIM-IT allows for users to assign roles available to them.</li>
   <li>Fixed issues with authentication and assigning the role and request formatting.</li>
 </ul>
+<b> Version 0.0.2 - Fixes and Improvements </b>
+<ul>
+  <li>Users can now update and deactivate PIM roles.</li>
+  <li>Users can create Activation Packages with pre-defined parameters for quicker activation</li>
+  <li>Fixed issues with authentication and assigning the role and request formatting.</li>
+  <li>Improved exception handling for main menu and activation functions.</li>
+</ul>
 
 <h2>Want to contribute?</h2>
 Right now we are not accepting any contributors, but in the future we will. We thank you for your interest in the project!
