@@ -86,7 +86,7 @@ while ($searchingForRoles -eq $True) {
                         }
                     }
                     New-MgRoleManagementDirectoryRoleAssignmentScheduleRequest -BodyParameter $roleDeactivationRequest
-                    Write-Output "Role deactivated successfully." 
+                    Write-Output "Role activated successfully." 
 
                 } else {
                     Write-Output "Role assignment cancelled."
