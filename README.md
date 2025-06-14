@@ -2,7 +2,7 @@
 PIM-IT is a PowerShell-based tool that utilizes Microsoft Graph to assign PIM roles in a more user-friendly fashion.
 
 <h2>Requirements</h2>
-<b>To use PIM-IT the following is required:</b>
+<b>To use PIM-IT the following is required:</b><br>
 1. Microsoft Entra ID P2 or Microsoft Entra ID Governance<br>
 2. Admin consent must be granted prior to using PIM-IT
 
