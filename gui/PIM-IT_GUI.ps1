@@ -40,19 +40,64 @@ $button.Add_Click({
     $mainForm.Controls.Remove($label)
     $mainForm.Controls.Remove($button)
     $mainForm.Refresh()
-})
 
-while($authentication -eq $False){
     $label = New-Object System.Windows.Forms.Label
     $label.Text = "Attempting to authenticate..."
     $label.Font = New-Object System.Drawing.Font("Arial", 15)
     $label.ForeColor = [System.Drawing.Color]::Black
     $label.AutoSize = $true
-    $label.Location = New-Object System.Drawing.Point(110, 50)
+    $label.Location = New-Object System.Drawing.Point(170, 50)
     $mainForm.Controls.Add($label)
-}
+
+
+    $spinner = New-Object System.Windows.Forms.PictureBox
+    $spinner.ImageLocation = "C:\Users\colby\PIM-IT\PIM-IT\gui\ajax-loader.gif"
+    $spinner.SizeMode = "AutoSize"
+    $spinner.Location = New-Object System.Drawing.Point(190, 100)
+    $mainForm.Controls.Add($spinner)
+
+    Connect-MgGraph -Scopes "User.Read.All, RoleManagement.ReadWrite.Directory, RoleAssignmentSchedule.Read.Directory, RoleEligibilitySchedule.Read.Directory " -NoWelcome | Format-List userPrincipalName
+    $mainForm.Controls.Remove($label)
+    $mainForm.Controls.Remove($spinner)
+    $mainForm.Refresh()
+
+    $label = New-Object System.Windows.Forms.Label
+    $label.Text = "Authentication successful!"
+    $label.Font = New-Object System.Drawing.Font("Arial", 15)
+    $label.ForeColor = [System.Drawing.Color]::Black
+    $label.AutoSize = $true
+    $label.Location = New-Object System.Drawing.Point(170, 50)
+    $mainForm.Controls.Add($label)
+
+    $mainForm.Controls.Remove($label)
+
+    $label = New-Object System.Windows.Forms.Label
+    $label.Text = "Retrieving PIM roles..."
+    $label.Font = New-Object System.Drawing.Font("Arial", 15)
+    $label.ForeColor = [System.Drawing.Color]::Black
+    $label.AutoSize = $true
+    $label.Location = New-Object System.Drawing.Point(170, 50)
+    $mainForm.Controls.Add($label)
+
+
+
+
+    
+
+    $spinner = New-Object System.Windows.Forms.PictureBox
+    $spinner.ImageLocation = "C:\Users\colby\PIM-IT\PIM-IT\gui\ajax-loader.gif"
+    $spinner.SizeMode = "AutoSize"
+    $spinner.Location = New-Object System.Drawing.Point(190, 100)
+    $mainForm.Controls.Add($spinner)
+
+    $currentUser = Get-MgUser -UserId (Get-MgUser -Filter "userPrincipalName eq '//'").Id
+
+    # Get eligible PIM roles
+    $eligibleRoles = Get-MgRoleManagementDirectoryRoleEligibilitySchedule -Filter "principalId eq '$($currentUser.Id)'"
+    $roleDefinitions = Get-MgRoleManagementDirectoryRoleDefinition
+})
+
 
 $mainForm.ShowDialog()
-
 
 
